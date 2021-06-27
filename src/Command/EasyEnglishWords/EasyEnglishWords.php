@@ -142,7 +142,7 @@ class EasyEnglishWords extends TelegramBotBase
             foreach ($wordSetList as $wordSet) {
                 $inlineKeyboard[] = [
                     [
-                        'callback_data' => $this->prepareCallbackData('onWordSet', ['id' => $wordSet->getId()]),
+                        'callback_data' => $this->prepareCallbackData('onWordSet', ['wordsetId' => $wordSet->getId()]),
                         'text' => "{$wordSet->getTitle()}: {$wordSet->getWordInLearns()->count()}",
                     ]
                 ];
@@ -162,7 +162,7 @@ class EasyEnglishWords extends TelegramBotBase
 
     public function onWordSet(Context $context, array $params)
     {
-        $wordSet = $this->wordSetRepository->find($params['id']);
+        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         
         $file = $wordSet->getFileId() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
         
@@ -204,9 +204,9 @@ class EasyEnglishWords extends TelegramBotBase
 
     public function learnWordset(Context $context, array $params)
     {
-        $wordSet = $this->wordSetRepository->find($params['id']);
+        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordInLearns();
-        $offsetKey = "learnWordset_{$params['id']}";
+        $offsetKey = "learnWordset_{$params['wordsetId']}";
         $offset = $this->cache->get($offsetKey) ?? 0;
         $wordsInLearnChunk = $wordsInLearn->slice($offset);
 
@@ -224,7 +224,7 @@ class EasyEnglishWords extends TelegramBotBase
                         'text' => 'Помню',
                     ],
                     [
-                        'callback_data' => $this->prepareCallbackData('onForgot', ['wordInLearnId' => $wordInLearn->getId(), 'wordsetId' => $params['id']]),
+                        'callback_data' => $this->prepareCallbackData('onForgot', ['wordInLearnId' => $wordInLearn->getId(), 'wordsetId' => $params['wordsetId']]),
                         'text' => 'Не помню',
                     ],
                 ],
@@ -248,7 +248,7 @@ class EasyEnglishWords extends TelegramBotBase
         $inlineKeyboard = [
             [
                 [
-                    'callback_data' => $this->prepareCallbackData('learnWordset', ['id' => $params['wordsetId']]),
+                    'callback_data' => $this->prepareCallbackData('learnWordset', ['wordsetId' => $params['wordsetId']]),
                     'text' => 'Дальше',
                 ],
             ],
@@ -260,7 +260,7 @@ class EasyEnglishWords extends TelegramBotBase
 
     public function showWordSetList(Context $context, array $params)
     {
-        $wordSet = $this->wordSetRepository->find($params['id']);
+        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordInLearns();
 
         $inlineKeyBoard = [];
@@ -479,7 +479,7 @@ class EasyEnglishWords extends TelegramBotBase
                     $imageFormat = end($parts);
                     $newFilePath = 'file://' . self::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}";
                     if (copy($file->getFilePath(), self::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}")) {
-                        $wordSet = $this->wordSetRepository->find($params['id']);
+                        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
                         $wordSet->setImage($newFilePath);
                         $this->entityManager->persist($wordSet);
                         $this->entityManager->flush();
