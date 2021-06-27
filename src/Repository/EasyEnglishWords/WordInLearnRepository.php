@@ -19,6 +19,21 @@ class WordInLearnRepository extends ServiceEntityRepository
         parent::__construct($registry, WordInLearn::class);
     }
 
+    public function increaseScore($id, int $increase)
+    {
+        $wordInLearn = $this->find($id);
+        if ($wordInLearn) {
+            $oldScore = (int) $wordInLearn->getScore();
+            $wordInLearn->setScore($oldScore + $increase);
+            $entityManager = $this->getEntityManager();
+            $entityManager->persist($wordInLearn);
+            $entityManager->flush();
+            $entityManager->refresh($wordInLearn);
+        }
+        
+        return $wordInLearn;
+    }
+
     // /**
     //  * @return WordInLearn[] Returns an array of WordInLearn objects
     //  */
