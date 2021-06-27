@@ -245,6 +245,7 @@ class EasyEnglishWords extends TelegramBotBase
         $wordInLearn->setScore(--$oldScore);
         $this->entityManager->persist($wordInLearn);
         $this->entityManager->flush();
+        $this->entityManager->refresh($wordInLearn);
         $inlineKeyboard = [
             [
                 [
@@ -426,6 +427,7 @@ class EasyEnglishWords extends TelegramBotBase
         $wordInLearn->setMeaning($meaning);
         $this->entityManager->persist($wordInLearn);
         $this->entityManager->flush();
+        $this->entityManager->refresh($wordSet);
         
         $context->sendMessage("{$meaning->getText()} Добавлено в <i>{$wordSet->getTitle()}</i>", ['parse_mode' => 'HTML']);
         $context->endConversation();
@@ -448,6 +450,7 @@ class EasyEnglishWords extends TelegramBotBase
                         $wordSet->setImage($newFilePath);
                         $this->entityManager->persist($wordSet);
                         $this->entityManager->flush();
+                        $this->entityManager->refresh($wordSet);
                         $context->sendMessage('Обложка успешно обновлена');
                     } else {
                         $this->logger->error("Error on copying image from: {$file->getFilePath()} to {$newFilePath}");
