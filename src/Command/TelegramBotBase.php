@@ -14,6 +14,8 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Zanzara\Config;
 use Zanzara\Context;
+use Zanzara\Telegram\Type\Input\InputFile;
+use Zanzara\Telegram\Type\Message;
 use Zanzara\Zanzara;
 
 class TelegramBotBase extends Command
@@ -181,5 +183,53 @@ class TelegramBotBase extends Command
         $curl->execute();
 
         return $fileSize;
+    }
+
+    protected function sendPhoto(Context $context, array $inlineKeyboard, $photoUrl, $photoUrlLowerSize = null, string $caption = null, bool $edit = false)
+    {
+        $options = [
+            'parse_mode' => 'HTML',
+            'caption' => $caption,
+            'reply_markup' => [
+                'inline_keyboard' => $inlineKeyboard
+            ],
+        ];
+
+        if ($edit) {
+            $media = [
+                'media' => $photoUrl,
+                'type' => 'photo',
+                'caption' => $caption,
+                'parse_mode' => 'HTML'
+            ];
+            $context->editMessageMedia($media, $options)->then(function () {},  function ($error) use ($options, $context, $photoUrl, $photoUrlLowerSize) {
+                $this->logger->error($error);
+                if ($photoUrlLowerSize) {
+                    $this->logger->info('Trying to resend...');
+                    $media['media'] = $photoUrlLowerSize;
+                    $context->editMessageMedia($media, $options);
+                }
+            });
+        } else {
+            $context->sendPhoto($photoUrl, $options)->then(function (\Zanzara\Telegram\Type\Message $msg) {
+
+            }, function ($error) use ($options, $context, $photoUrl, $photoUrlLowerSize) {
+                $this->logger->error($error);
+                if ($photoUrlLowerSize) {
+                    $this->logger->info('Trying to resend...');
+                    $context->sendPhoto($photoUrlLowerSize, $options);
+                }
+            });
+        }
+    }
+
+    protected function sendAudio(Context $context, string $soundUrl, array $options)
+    {
+        $filePath = '/tmp/' . md5($soundUrl);
+        $this->asyncLoader->downloadFileAsync($soundUrl, $filePath)->then(function ($filePath) use ($context, $options) {
+            $context->sendAudio(new InputFile($filePath), $options)->then(function (Message $message) use ($filePath){
+                @unlink($filePath);
+            });
+        });
     }
 }

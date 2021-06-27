@@ -363,54 +363,19 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $photoUrl = $meaning->getFirstImage();
         $caption = $caption ?? $this->getMeaningCaption($meaning);
-        $options = [
-            'parse_mode' => 'HTML',
-            'caption' => $caption,
-            'reply_markup' => [
-                'inline_keyboard' => $inlineKeyboard
-            ],
-        ];
-
-        if ($edit) {
-            $media = [
-                'media' => $photoUrl,
-                'type' => 'photo',
-                'caption' => $caption,
-                'parse_mode' => 'HTML'
-            ];
-            $context->editMessageMedia($media, $options)->then(function () {},  function ($error) use ($options, $context, $photoUrl) {
-                $this->logger->error($error);
-                $this->logger->info('Trying to resend...');
-                $media['media'] = $photoUrl . '?w=400&h=300&q=1';//todo decrease size???
-                $context->editMessageMedia($media, $options);
-            });
-        } else {
-            $context->sendPhoto($photoUrl, $options)->then(function (\Zanzara\Telegram\Type\Message $msg) {
-
-            }, function ($error) use ($options, $context, $photoUrl) {
-                $this->logger->error($error);
-                $this->logger->info('Trying to resend...');
-                $context->sendPhoto($photoUrl . '?w=400&h=300&q=1', $options);//todo decrease size???
-            });
-        }
+        $photoUrlLowerSize = $photoUrl . '?w=400&h=300&q=1';
+        $this->sendPhoto($context, $inlineKeyboard, $photoUrl, $photoUrlLowerSize, $caption, $edit);
     }
 
     protected function sendMeaningAudio(Context $context, Meaning $meaning)
     {
-        $filePath = '/tmp/' . md5($meaning->getSoundUrl());
-        $this->asyncLoader->downloadFileAsync($meaning->getSoundUrl(), $filePath)->then(function ($filePath) use ($context, $meaning) {
-            $context->sendAudio(new InputFile($filePath), [
-                'caption' => $meaning->getTranscription(),
-                'performer' => $meaning->getText(),
-                'title' => $meaning->getTranslation()['text'],
-                'parse_mode' => 'HTML',
-            ])->then(function (Message $message) use ($filePath){
-                @unlink($filePath);
-            });
-        });
+        $this->sendAudio($context, $meaning->getSoundUrl(), [
+            'caption' => $meaning->getTranscription(),
+            'performer' => $meaning->getText(),
+            'title' => $meaning->getTranslation()['text'],
+            'parse_mode' => 'HTML',
+        ]);
     }
-
-
 
     protected function getMeaningCaption(Meaning $meaning)
     {
