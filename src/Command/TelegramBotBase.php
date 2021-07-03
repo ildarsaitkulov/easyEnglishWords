@@ -185,7 +185,7 @@ class TelegramBotBase extends Command
         return $fileSize;
     }
 
-    protected function sendPhoto(Context $context, array $inlineKeyboard, $photoUrl, $photoUrlLowerSize = null, string $caption = null, bool $edit = false)
+    protected function sendPhoto(Context $context, array $inlineKeyboard, $photoUrl, string $caption = null, bool $edit = false)
     {
         $options = [
             'parse_mode' => 'HTML',
@@ -202,25 +202,11 @@ class TelegramBotBase extends Command
                 'caption' => $caption,
                 'parse_mode' => 'HTML'
             ];
-            $context->editMessageMedia($media, $options)->then(function () {},  function ($error) use ($options, $context, $photoUrl, $photoUrlLowerSize) {
-                $this->logger->error($error);
-                if ($photoUrlLowerSize) {
-                    $this->logger->info('Trying to resend...');
-                    $media['media'] = $photoUrlLowerSize;
-                    $context->editMessageMedia($media, $options);
-                }
-            });
-        } else {
-            $context->sendPhoto($photoUrl, $options)->then(function (\Zanzara\Telegram\Type\Message $msg) {
-
-            }, function ($error) use ($options, $context, $photoUrl, $photoUrlLowerSize) {
-                $this->logger->error($error);
-                if ($photoUrlLowerSize) {
-                    $this->logger->info('Trying to resend...');
-                    $context->sendPhoto($photoUrlLowerSize, $options);
-                }
-            });
+            
+            return $context->editMessageMedia($media, $options);
         }
+        
+        return $context->sendPhoto($photoUrl, $options);
     }
 
     protected function sendAudio(Context $context, string $soundUrl, array $options)

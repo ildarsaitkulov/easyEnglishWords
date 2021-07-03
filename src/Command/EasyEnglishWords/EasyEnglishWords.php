@@ -217,10 +217,11 @@ class EasyEnglishWords extends TelegramBotBase
         /** @var $wordInLearn WordInLearn */
         foreach ($wordsInLearnChunk as $key => $wordInLearn) {
             $meaning = $wordInLearn->getMeaning();
+            var_dump($wordInLearn->getScore());
             $inlineKeyboard = [
                 [
                     [
-                        'callback_data' => $this->prepareCallbackData('learnWordset', $params),
+                        'callback_data' => $this->prepareCallbackData('onRemember', ['wordInLearnId' => $wordInLearn->getId(), 'wordsetId' => $params['wordsetId']]),
                         'text' => 'Помню',
                     ],
                     [
@@ -237,15 +238,16 @@ class EasyEnglishWords extends TelegramBotBase
         }
     }
 
+    public function onRemember(Context $context, array $params)
+    {
+        $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
+        $this->learnWordset($context, $params);
+    }
+
     public function onForgot(Context $context, array $params)
     {
-        $wordInLearn = $this->wordInLearnRepository->find($params['wordInLearnId']);
+        $wordInLearn = $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], -1);
         $meaning = $wordInLearn->getMeaning();
-        $oldScore = (int) $wordInLearn->getScore();
-        $wordInLearn->setScore(--$oldScore);
-        $this->entityManager->persist($wordInLearn);
-        $this->entityManager->flush();
-        $this->entityManager->refresh($wordInLearn);
         $inlineKeyboard = [
             [
                 [
@@ -362,10 +364,20 @@ class EasyEnglishWords extends TelegramBotBase
 
     protected function sendMeaningPhoto(Context $context, Meaning $meaning, array $inlineKeyboard, string $caption = null, bool $edit = false)
     {
-        $photoUrl = $meaning->getFirstImage();
+        $photoUrl = $meaning->getFirstImageByPrams(50);
         $caption = $caption ?? $this->getMeaningCaption($meaning);
-        $photoUrlLowerSize = $photoUrl . '?w=400&h=300&q=1';
-        $this->sendPhoto($context, $inlineKeyboard, $photoUrl, $photoUrlLowerSize, $caption, $edit);
+        
+        $this->sendPhoto($context, $inlineKeyboard, $photoUrl, $caption, $edit)->then(function (Message $message) {
+            var_dump('sent');
+        }, function ($error) use ($context, $inlineKeyboard, $meaning, $caption, $edit) {
+            $this->logger->error($error);
+            $photoUrlLowerSize = $meaning->getFirstImageByPrams(1);
+            $this->sendPhoto($context, $inlineKeyboard, $photoUrlLowerSize, $caption, $edit)->then(function (Message $message) {
+                var_dump('resent');
+            }, function ($error) {
+                $this->logger->error($error);
+            });
+        });
     }
 
     protected function sendMeaningAudio(Context $context, Meaning $meaning)

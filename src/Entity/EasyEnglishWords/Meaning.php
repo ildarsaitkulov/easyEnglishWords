@@ -313,7 +313,7 @@ class Meaning
         return $this;
     }
     
-    public function getFirstImage($cleanParams = true)
+    public function getFirstImage(bool $cleanParams = true)
     {
         $images = $this->getImages();
         if (empty($images[0]['url'])) {
@@ -328,5 +328,15 @@ class Meaning
         }
 
         return "https:{$imageUrl}";
+    }
+
+    public function getFirstImageByPrams(int $quality = 50, int $with = 400, int $height = 300)
+    {
+        $image = $this->getFirstImage(true);
+        if (!$image) {
+            return null;
+        }
+        
+        return "{$image}?w={$with}&h={$height}&q={$quality}";
     }
 }
