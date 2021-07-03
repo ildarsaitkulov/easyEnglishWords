@@ -8,6 +8,7 @@ use App\Entity\EasyEnglishWords\WordInLearn;
 use App\Entity\EasyEnglishWords\WordSet;
 use App\Libraries\Skyeng\DictionaryApi;
 use App\Command\TelegramBotBase;
+use App\Libraries\Telegram\TelegramFileCache;
 use App\Repository\EasyEnglishWords\EnglishWordRepository;
 use App\Repository\EasyEnglishWords\MeaningRepository;
 use App\Repository\EasyEnglishWords\WordInLearnRepository;
@@ -49,6 +50,10 @@ class EasyEnglishWords extends TelegramBotBase
         'telegramCachePath' => '/tmp/easyEnglishBotCache',
         'callback_ttl' => 86400 * 7,
     ];
+    /**
+     * @var TelegramFileCache
+     */
+    protected TelegramFileCache $telegramFileCache;
 
     public function __construct(string $name = null, 
                                 EntityManagerInterface $entityManager, 
@@ -71,6 +76,7 @@ class EasyEnglishWords extends TelegramBotBase
         $this->wordSetRepository = $wordSetRepository;
         $this->wordInLearnRepository = $wordInLearnRepository;
         $this->telegramChatRepository = $chatRepository;
+        $this->telegramFileCache = new TelegramFileCache($this->config['botToken']);
         
         parent::__construct($logger, $name);
         $this->dictionaryApi = new DictionaryApi($this->logger);
@@ -365,19 +371,28 @@ class EasyEnglishWords extends TelegramBotBase
     protected function sendMeaningPhoto(Context $context, Meaning $meaning, array $inlineKeyboard, string $caption = null, bool $edit = false)
     {
         $photoUrl = $meaning->getFirstImageByPrams(50);
+        $fileId = $this->telegramFileCache->getFileId($photoUrl);
+        $photo = $fileId ?: $photoUrl;
         $caption = $caption ?? $this->getMeaningCaption($meaning);
         
-        $this->sendPhoto($context, $inlineKeyboard, $photoUrl, $caption, $edit)->then(function (Message $message) {
-            var_dump('sent');
+        $this->sendPhoto($context, $inlineKeyboard, $photo, $caption, $edit)->then(function (Message $message) use ($photoUrl) {
+            $this->storeFileIdByMessage($message, $photoUrl);
         }, function ($error) use ($context, $inlineKeyboard, $meaning, $caption, $edit) {
             $this->logger->error($error);
             $photoUrlLowerSize = $meaning->getFirstImageByPrams(1);
-            $this->sendPhoto($context, $inlineKeyboard, $photoUrlLowerSize, $caption, $edit)->then(function (Message $message) {
-                var_dump('resent');
+             $this->sendPhoto($context, $inlineKeyboard, $photoUrlLowerSize, $caption, $edit)->then(function (Message $message) use ($photoUrlLowerSize) {
+                 $this->storeFileIdByMessage($message, $photoUrlLowerSize);
             }, function ($error) {
                 $this->logger->error($error);
             });
         });
+    }
+
+    protected function storeFileIdByMessage(Message $message, $photoUrl)
+    {
+        $photos = $message->getPhoto();
+        $largestPhoto = end($photos);
+        $this->telegramFileCache->storeFileId($photoUrl, $largestPhoto->getFileId());
     }
 
     protected function sendMeaningAudio(Context $context, Meaning $meaning)
