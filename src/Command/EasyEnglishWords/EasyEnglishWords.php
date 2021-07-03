@@ -211,7 +211,13 @@ class EasyEnglishWords extends TelegramBotBase
     public function learnWordset(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
-        $wordsInLearn = $wordSet->getWordInLearns();
+        $wordsInLearn = $wordSet->getWordsInLearnProgress();
+        if ($wordsInLearn->count() === 0) {
+            $context->sendMessage("Молодец, все слова из списка <i>{$wordSet->getTitle()}</i> выучены!", ['parse_mode' => 'HTML']);
+            
+            return;
+        }
+        error_log("total count: " . $wordsInLearn->count());
         $offsetKey = "learnWordset_{$params['wordsetId']}";
         $offset = $this->cache->get($offsetKey) ?? 0;
         $wordsInLearnChunk = $wordsInLearn->slice($offset);
@@ -246,7 +252,8 @@ class EasyEnglishWords extends TelegramBotBase
 
     public function onRemember(Context $context, array $params)
     {
-        $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
+        $wordInLearn = $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
+        
         $this->learnWordset($context, $params);
     }
 

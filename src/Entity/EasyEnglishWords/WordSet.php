@@ -123,6 +123,17 @@ class WordSet
         return $this->wordInLearns;
     }
 
+    /**
+     * @return Collection|WordInLearn[]
+     */
+    public function getWordsInLearnProgress(): Collection
+    {
+        $wordsInLearn = $this->getWordInLearns();
+        return $wordsInLearn->filter(function (WordInLearn $wordInLearn) {
+            return !$wordInLearn->learned();
+        });
+    }
+
     public function addWordToLearn(WordInLearn $wordInLearn): self
     {
         if (!$this->wordInLearns->contains($wordInLearn)) {

@@ -35,6 +35,8 @@ class WordInLearn
      * @ORM\Column(type="integer", nullable=true)
      */
     private $score;
+    
+    protected $wordLearnedLevel = 10;
 
     public function getId(): ?int
     {
@@ -75,5 +77,10 @@ class WordInLearn
         $this->score = $score;
 
         return $this;
+    }
+
+    public function learned(): bool
+    {
+        return $this->getScore() >= $this->wordLearnedLevel;
     }
 }
