@@ -36,7 +36,7 @@ class WordInLearn
      */
     private $score;
     
-    protected $wordLearnedLevel = 10;
+    protected $wordLearnedLevel = 4;
 
     public function getId(): ?int
     {
