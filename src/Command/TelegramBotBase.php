@@ -42,7 +42,16 @@ class TelegramBotBase extends Command
      */
     protected Zanzara $bot;
 
-    public function __construct(LoggerInterface $logger, $name = null)
+    /**
+     * TelegramBotBase constructor.
+     *
+     * @param LoggerInterface $logger
+     * @param string|null     $name
+     *
+     * @throws \DI\DependencyException
+     * @throws \DI\NotFoundException
+     */
+    public function __construct(LoggerInterface $logger, string $name = null)
     {
         $this->logger = $logger;
         $this->loop = Factory::create();
@@ -82,6 +91,12 @@ class TelegramBotBase extends Command
         throw new LogicException('Implement it in your telegram bot');
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{data:array, size?:int, currentPage?:int, edit?:bool} $params
+     */
     public function showPaging(Context $context, array $params)
     {
         if (empty($params['size'])) {
@@ -146,6 +161,12 @@ class TelegramBotBase extends Command
         }
     }
 
+    /**
+     * @param string $method
+     * @param        $params
+     *
+     * @return string
+     */
     public function prepareCallbackData(string $method, $params)
     {
         $id = $this->generateUniqueId();
@@ -154,11 +175,17 @@ class TelegramBotBase extends Command
         return "{$method}@{$id}";
     }
 
+    /**
+     * @param Context $context
+     */
     public function sendButtonExpired(Context $context)
     {
         $context->answerCallbackQuery(['text' => 'Время ожидания кнопки истекло!']);
     }
 
+    /**
+     * @return string
+     */
     public function generateUniqueId()
     {
         $hash = md5(mt_rand(0, 1000000));
@@ -166,6 +193,12 @@ class TelegramBotBase extends Command
         return str_replace(".", '', microtime(true) . $hash[1]);
     }
 
+    /**
+     * @param string $url
+     *
+     * @return int
+     * @throws \App\Libraries\Net\Exceptions\CurlException
+     */
     protected function getFileSizeByUrl(string $url)
     {
         $fileSize = 0;
@@ -185,7 +218,16 @@ class TelegramBotBase extends Command
         return $fileSize;
     }
 
-    protected function sendPhoto(Context $context, array $inlineKeyboard, $photoUrl, string $caption = null, bool $edit = false)
+    /**
+     * @param Context     $context
+     * @param array       $inlineKeyboard
+     * @param string      $photoUrl
+     * @param string|null $caption
+     * @param bool        $edit
+     *
+     * @return \React\Promise\PromiseInterface
+     */
+    protected function sendPhoto(Context $context, array $inlineKeyboard, string $photoUrl, string $caption = null, bool $edit = false)
     {
         $options = [
             'parse_mode' => 'HTML',
@@ -209,6 +251,11 @@ class TelegramBotBase extends Command
         return $context->sendPhoto($photoUrl, $options);
     }
 
+    /**
+     * @param Context $context
+     * @param string  $soundUrl
+     * @param array   $options
+     */
     protected function sendAudio(Context $context, string $soundUrl, array $options)
     {
         $filePath = '/tmp/' . md5($soundUrl);
