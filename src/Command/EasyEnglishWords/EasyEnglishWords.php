@@ -49,6 +49,7 @@ class EasyEnglishWords extends TelegramBotBase
         'telegramApiUrl' => 'http://127.0.0.1:8081',
         'telegramCachePath' => '/tmp/easyEnglishBotCache',
         'callback_ttl' => 86400 * 7,
+        'maxMeanings' => 5
     ];
     /**
      * @var TelegramFileCache
@@ -358,6 +359,7 @@ class EasyEnglishWords extends TelegramBotBase
         $meaningIds  = array_column($word['meanings'], 'id');
         
         $meanings = $this->dictionaryApi->getMeanings($meaningIds);
+        $meanings = array_slice($meanings, 0, $this->config['maxMeanings']);
         
         foreach ($meanings as $meaningData) {
             $meaning = $this->meaningRepository->save($meaningData, $wordEntity);
