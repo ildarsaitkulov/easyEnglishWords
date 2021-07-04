@@ -1,4 +1,10 @@
 {
+    "amphp/amp": {
+        "version": "v2.5.2"
+    },
+    "amphp/byte-stream": {
+        "version": "v1.8.1"
+    },
     "badfarm/zanzara": {
         "version": "dev-master"
     },
@@ -7,6 +13,15 @@
     },
     "composer/package-versions-deprecated": {
         "version": "1.11.99.1"
+    },
+    "composer/semver": {
+        "version": "3.2.5"
+    },
+    "composer/xdebug-handler": {
+        "version": "2.0.1"
+    },
+    "dnoegel/php-xdg-base-dir": {
+        "version": "v0.1.1"
     },
     "doctrine/annotations": {
         "version": "1.0",
@@ -90,6 +105,12 @@
     "evenement/evenement": {
         "version": "v3.0.1"
     },
+    "felixfbecker/advanced-json-rpc": {
+        "version": "v3.2.1"
+    },
+    "felixfbecker/language-server-protocol": {
+        "version": "1.5.1"
+    },
     "friendsofphp/proxy-manager-lts": {
         "version": "v1.0.3"
     },
@@ -113,6 +134,9 @@
     },
     "nikic/php-parser": {
         "version": "v4.10.4"
+    },
+    "openlss/lib-array2xml": {
+        "version": "1.0.0"
     },
     "opis/closure": {
         "version": "3.6.1"
@@ -191,6 +215,9 @@
     },
     "ringcentral/psr7": {
         "version": "1.3.0"
+    },
+    "sebastian/diff": {
+        "version": "4.0.4"
     },
     "sensio/framework-extra-bundle": {
         "version": "5.2",
@@ -573,7 +600,13 @@
     "twig/twig": {
         "version": "v3.2.1"
     },
+    "vimeo/psalm": {
+        "version": "4.8.1"
+    },
     "webmozart/assert": {
         "version": "1.9.1"
+    },
+    "webmozart/path-util": {
+        "version": "2.3.0"
     }
 }

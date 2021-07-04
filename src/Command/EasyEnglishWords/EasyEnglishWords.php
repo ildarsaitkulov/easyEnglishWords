@@ -437,6 +437,16 @@ class EasyEnglishWords extends TelegramBotBase
         $this->showPaging($context, ['data' => $searchResult]);
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @throws \App\Libraries\Net\Exceptions\CurlException
+     * @throws \Doctrine\ORM\ORMException
+     * @throws \Doctrine\ORM\OptimisticLockException
+     *
+     * @psalm-param array{words:array,word_external_id:int} $params
+     */
     public function onWord(Context $context, array $params)
     {
         $words = $params['words'];
