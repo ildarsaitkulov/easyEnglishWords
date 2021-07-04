@@ -163,7 +163,7 @@ class EasyEnglishWords extends TelegramBotBase
                 ]
             ];
         }
-        $context->sendMessage('Что будем учить?:', [
+        $context->sendMessage('Что будем учить?', [
             'reply_markup' => [
                 'inline_keyboard' => $inlineKeyboard
             ],
@@ -341,7 +341,7 @@ class EasyEnglishWords extends TelegramBotBase
     public function onRemember(Context $context, array $params)
     {
         $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
-        
+        $params['editMedia'] = true;
         $this->learnWordset($context, $params);
     }
 
