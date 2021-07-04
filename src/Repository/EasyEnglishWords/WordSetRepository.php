@@ -2,9 +2,11 @@
 
 namespace App\Repository\EasyEnglishWords;
 
+use App\Command\EasyEnglishWords\EasyEnglishWords;
 use App\Entity\EasyEnglishWords\WordSet;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
+use Psr\Log\LoggerInterface;
 
 /**
  * @method WordSet|null find($id, $lockMode = null, $lockVersion = null)
@@ -14,9 +16,37 @@ use Doctrine\Persistence\ManagerRegistry;
  */
 class WordSetRepository extends ServiceEntityRepository
 {
-    public function __construct(ManagerRegistry $registry)
+
+    /**
+     * @var LoggerInterface
+     */
+    protected LoggerInterface $logger;
+
+    public function __construct(ManagerRegistry $registry, LoggerInterface $logger)
     {
         parent::__construct($registry, WordSet::class);
+        $this->logger = $logger;
+    }
+    
+    public function saveWordsetImage(int $wordsetId, \Zanzara\Telegram\Type\File\File $file): bool
+    {
+        $parts = explode('.', $file->getFilePath());
+        $imageFormat = end($parts);
+        $newFilePath = 'file://' . EasyEnglishWords::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}";
+        if (copy($file->getFilePath(), EasyEnglishWords::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}")) {
+            $entityManager = $this->getEntityManager();
+            $wordSet = $this->find($wordsetId);
+            $wordSet->setImage($newFilePath);
+            $entityManager->persist($wordSet);
+            $entityManager->flush();
+            $entityManager->refresh($wordSet);
+
+            return true;
+        }
+        
+        $this->logger->error("Error on copying image from: {$file->getFilePath()} to {$newFilePath}");
+        
+        return false;
     }
 
     // /**

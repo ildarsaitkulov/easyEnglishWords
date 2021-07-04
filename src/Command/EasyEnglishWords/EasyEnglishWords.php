@@ -41,8 +41,8 @@ class EasyEnglishWords extends TelegramBotBase
     protected DictionaryApi $dictionaryApi;
     protected TelegramBotBase $telegramBotHelper;
 
-    protected const IMAGES_DIR = APP_ROOT . '/public/EasyEnglishWords/images/';
-    protected const NO_IMAGE_FILE_PATH =  self::IMAGES_DIR  . 'no-image-icon.png';
+    public const IMAGES_DIR = APP_ROOT . '/public/EasyEnglishWords/images/';
+    public const NO_IMAGE_FILE_PATH =  self::IMAGES_DIR  . 'no-image-icon.png';
 
 
     protected array $config = [
@@ -170,10 +170,8 @@ class EasyEnglishWords extends TelegramBotBase
     public function onWordSet(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
-        
         $file = $wordSet->getFileId() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
-        
-        $context->sendPhoto($file, [
+        $options = [
             'parse_mode' => 'HTML',
             'caption' => $wordSet->getTitle(),
             'reply_markup' => [
@@ -185,14 +183,14 @@ class EasyEnglishWords extends TelegramBotBase
                         ],
                     ],
                     [
-                        
+
                         [
                             'callback_data' => $this->prepareCallbackData('onAddWords', $params),
                             'text' => "Добавить слова",
                         ]
                     ],
                     [
-                        
+
                         [
                             'callback_data' => $this->prepareCallbackData('showWordSetList', $params),
                             'text' => "Показать слова",
@@ -206,7 +204,20 @@ class EasyEnglishWords extends TelegramBotBase
                     ],
                 ]
             ],
-        ]);
+        ];
+        
+        $context->sendPhoto($file, $options)->then(function () {}, function ($error) use ($context, $options, $wordSet) {
+            $this->logger->error($error);
+            $context->sendPhoto($wordSet->getImage(), $options)->then(function (Message $message) use ($context, $wordSet) {
+                $photos = $message->getPhoto();
+                if ($photos) {
+                    $largesPhoto = end($photos);
+                    $context->getFile($largesPhoto->getFileId())->then(function (\Zanzara\Telegram\Type\File\File $file) use ($wordSet) {
+                        $this->wordSetRepository->saveWordsetImage($wordSet->getId(), $file);
+                    });
+                }
+            });
+        });
     }
 
     public function learnWordset(Context $context, array $params)
@@ -479,19 +490,10 @@ class EasyEnglishWords extends TelegramBotBase
             if ($photos) {
                 $largesPhoto = end($photos);
                 $context->getFile($largesPhoto->getFileId())->then(function (\Zanzara\Telegram\Type\File\File $file) use ($context, $params) {
-                    $parts = explode('.', $file->getFilePath());
-                    $imageFormat = end($parts);
-                    $newFilePath = 'file://' . self::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}";
-                    if (copy($file->getFilePath(), self::IMAGES_DIR . "{$file->getFileId()}.{$imageFormat}")) {
-                        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
-                        $wordSet->setImage($newFilePath);
-                        $this->entityManager->persist($wordSet);
-                        $this->entityManager->flush();
-                        $this->entityManager->refresh($wordSet);
+                    $saved = $this->wordSetRepository->saveWordsetImage($params['wordsetId'], $file);
+                    if ($saved) {
                         $context->sendMessage('Обложка успешно обновлена');
                     } else {
-                        $this->logger->error("Error on copying image from: {$file->getFilePath()} to {$newFilePath}");
-                        
                         $context->sendMessage('Ошибка, попробуйте позже');
                     }
                     $context->endConversation();
