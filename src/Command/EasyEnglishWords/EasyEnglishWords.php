@@ -51,6 +51,15 @@ class EasyEnglishWords extends TelegramBotBase
         'callback_ttl' => 86400 * 7,
         'maxMeanings' => 5
     ];
+    
+    protected array $menuCommands = [
+        '/start' => 'Старт',
+        '/create_wordset' => 'Создать список слов',
+        '/list_wordsets' => 'Списки слов',
+        '/learn' => 'Учить',
+        '/search' => 'Поиск',
+    ];
+    
     /**
      * @var TelegramFileCache
      */
@@ -97,17 +106,18 @@ class EasyEnglishWords extends TelegramBotBase
         $this->bot->getTelegram()->setMyCommands([
             [
                 'command' => '/start',
-                'description' => 'Старт'
+                'description' => $this->menuCommands['/start']
             ],
             [
                 'command' => '/create_wordset',
-                'description' => 'Создать список слов'
+                'description' => $this->menuCommands['/create_wordset']
             ],
             [
-                'command' => '/list_wordset',
-                'description' => 'Показать список слов'
+                'command' => '/list_wordsets',
+                'description' => $this->menuCommands['/list_wordsets']
             ],
         ]);
+        
 
         $this->bot->onCommand('start', function (Context $context){
             $user = $context->getEffectiveUser();
@@ -118,53 +128,116 @@ class EasyEnglishWords extends TelegramBotBase
                 $this->logger->error("on start {$exception->getMessage()}");
             }
 
-            $context->sendMessage('Hi!hoho');
+            $context->sendMessage('Привет!', [
+                'reply_markup' => $this->getMenuReplyMarkup(),
+            ]);
 
         });
         
-        $this->bot->onCommand('create_wordset', function (Context $context) {
-            $context->sendMessage('Введите название списка слов:');
-            $context->nextStep(function (Context $context) {
-                $title = $context->getMessage()->getText();
-                $wordSet = $this->wordSetRepository->findOneBy(['title' => $title, 'telegramUser' => $user = $context->getEffectiveUser()->getId()]);
-                if ($wordSet) {
-                    $context->sendMessage("Список слов: <i>{$title}</i> уже существует!", ['parse_mode' => 'HTML']);
-                } else {
-                    $wordSet = new WordSet();
-                    $wordSet->setTitle($title);
-                    $user = $context->getEffectiveUser();
-                    $telegramUser = $this->telegramUserRepository->saveTelegramUser($user);
-                    $wordSet->setTelegramUser($telegramUser);
-                    $this->entityManager->persist($wordSet);
-                    $this->entityManager->flush();
-                    $context->sendMessage("Список слов: <i>{$wordSet->getTitle()}</i> создан!", ['parse_mode' => 'HTML']);
-                }
-                $context->endConversation();
-            });
-        });
+        $this->bot->onCommand('create_wordset', [$this, 'createWordSet']);
+        $this->bot->onText($this->menuCommands['/create_wordset'], [$this, 'createWordSet']);
         
-        $this->bot->onCommand('list_wordset', function (Context $context) {
-            $inlineKeyboard = [];
-            $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
-            foreach ($wordSetList as $wordSet) {
-                $inlineKeyboard[] = [
-                    [
-                        'callback_data' => $this->prepareCallbackData('onWordSet', ['wordsetId' => $wordSet->getId()]),
-                        'text' => "{$wordSet->getTitle()}: {$wordSet->getWordInLearns()->count()}",
-                    ]
-                ];
-            }
-            $context->sendMessage('Наборы слов:', [
-                'reply_markup' => [
-                    'inline_keyboard' => $inlineKeyboard
-                ],
-                'parse_mode' => 'HTML',
-            ]);
-        });
+        $this->bot->onCommand('list_wordsets', [$this, 'listWordsets']);
+        $this->bot->onText($this->menuCommands['/list_wordsets'], [$this, 'listWordsets']);
+        
+        $this->bot->onCommand('search', [$this, 'onAddWords']);
+        $this->bot->onText($this->menuCommands['/search'], [$this, 'onAddWords']);
+        
+        $this->bot->onCommand('learn', [$this, 'learn']);
+        $this->bot->onText($this->menuCommands['/learn'], [$this, 'learn']);
         
         $this->bot->run();
         
         return 0;
+    }
+
+    public function learn(Context $context)
+    {
+        $inlineKeyboard = [];
+        $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+        foreach ($wordSetList as $wordSet) {
+            $inlineKeyboard[] = [
+                [
+                    'callback_data' => $this->prepareCallbackData('learnWordset', ['wordsetId' => $wordSet->getId()]),
+                    'text' => "{$wordSet->getTitle()}: {$wordSet->getWordInLearns()->count()}",
+                ]
+            ];
+        }
+        $context->sendMessage('Что будем учить?:', [
+            'reply_markup' => [
+                'inline_keyboard' => $inlineKeyboard
+            ],
+            'parse_mode' => 'HTML',
+        ]);
+    }    
+    
+    public function listWordsets(Context $context)
+    {
+        $inlineKeyboard = [];
+        $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+        foreach ($wordSetList as $wordSet) {
+            $inlineKeyboard[] = [
+                [
+                    'callback_data' => $this->prepareCallbackData('onWordSet', ['wordsetId' => $wordSet->getId()]),
+                    'text' => "{$wordSet->getTitle()}: {$wordSet->getWordInLearns()->count()}",
+                ]
+            ];
+        }
+        $context->sendMessage('Наборы слов:', [
+            'reply_markup' => [
+                'inline_keyboard' => $inlineKeyboard
+            ],
+            'parse_mode' => 'HTML',
+        ]);
+    }
+
+    public function createWordSet(Context $context)
+    {
+        $context->sendMessage('Введите название списка слов:');
+        $context->nextStep(function (Context $context) {
+            $title = $context->getMessage()->getText();
+            if ($this->isCommand($title)) {
+                $context->endConversation();
+                
+                return;
+            }
+            $wordSet = $this->wordSetRepository->findOneBy(['title' => $title, 'telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+            if ($wordSet) {
+                $context->sendMessage("Список слов: <i>{$title}</i> уже существует!", ['parse_mode' => 'HTML']);
+            } else {
+                $wordSet = new WordSet();
+                $wordSet->setTitle($title);
+                $user = $context->getEffectiveUser();
+                $telegramUser = $this->telegramUserRepository->saveTelegramUser($user);
+                $wordSet->setTelegramUser($telegramUser);
+                $this->entityManager->persist($wordSet);
+                $this->entityManager->flush();
+                $context->sendMessage("Список слов: <i>{$wordSet->getTitle()}</i> создан!", ['parse_mode' => 'HTML']);
+            }
+            $context->endConversation();
+        });
+    }
+
+    protected function getMenuReplyMarkup()
+    {
+        return [
+            'keyboard' => [
+                [
+                    ['text' => $this->menuCommands['/search']],
+                    ['text' => $this->menuCommands['/learn']],
+                ],
+                [
+                    ['text' => $this->menuCommands['/list_wordsets']],
+                    ['text' => $this->menuCommands['/create_wordset']],
+                ]
+            ],
+            'resize_keyboard' => true
+        ];
+    }
+
+    protected function isCommand($text): bool
+    {   
+        return isset($this->menuCommands[$text]) || in_array($text, $this->menuCommands, true);
     }
 
     public function onWordSet(Context $context, array $params)
@@ -198,7 +271,7 @@ class EasyEnglishWords extends TelegramBotBase
                     ],
                     [
                         [
-                            'callback_data' => $this->prepareCallbackData('learnWordset', $params),
+                            'callback_data' => $this->prepareCallbackData('learnWordset', array_merge($params, ['editMedia' => true])),
                             'text' => "Учить слова",
                         ],
                     ],
@@ -238,6 +311,8 @@ class EasyEnglishWords extends TelegramBotBase
         
         $wordsInLearnChunk = $wordsInLearn->slice($offset);
         
+        $editMedia = $params['editMedia'] ?? false;
+        
         /** @var $wordInLearn WordInLearn */
         foreach ($wordsInLearnChunk as $wordInLearn) {
             $meaning = $wordInLearn->getMeaning();
@@ -257,7 +332,7 @@ class EasyEnglishWords extends TelegramBotBase
             $caption = "{$page}/{$totalCount}
 <b>{$meaning->getTranslation()['text']}</b>
 Вспомните перевод";
-            $this->sendMeaningPhoto($context, $meaning, $inlineKeyboard, $caption, true);
+            $this->sendMeaningPhoto($context, $meaning, $inlineKeyboard, $caption, $editMedia);
             $this->cache->set($offsetKey, ++$offset);
             break;
         }
@@ -265,7 +340,7 @@ class EasyEnglishWords extends TelegramBotBase
 
     public function onRemember(Context $context, array $params)
     {
-        $wordInLearn = $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
+        $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
         
         $this->learnWordset($context, $params);
     }
@@ -277,7 +352,7 @@ class EasyEnglishWords extends TelegramBotBase
         $inlineKeyboard = [
             [
                 [
-                    'callback_data' => $this->prepareCallbackData('learnWordset', ['wordsetId' => $params['wordsetId']]),
+                    'callback_data' => $this->prepareCallbackData('learnWordset', ['wordsetId' => $params['wordsetId'], 'editMedia' => true]),
                     'text' => 'Дальше',
                 ],
             ],
@@ -323,7 +398,7 @@ class EasyEnglishWords extends TelegramBotBase
         $context->endConversation();
     }
 
-    public function onAddWords(Context $context, array $params)
+    public function onAddWords(Context $context)
     {
         $context->sendMessage('Введите слово');
         $context->nextStep([$this, 'searchWord']);
