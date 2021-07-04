@@ -92,15 +92,21 @@ class EasyEnglishWords extends TelegramBotBase
         $this->dictionaryApi = new DictionaryApi($this->logger);
     }
 
-    protected function configure()
+    protected function configure(): void
     {
-        $this
-            ->setDescription(self::$defaultDescription)
-            ->addArgument('arg1', InputArgument::OPTIONAL, 'Argument description')
-            ->addOption('option1', null, InputOption::VALUE_NONE, 'Option description')
-        ;
+        $this->setDescription(self::$defaultDescription)
+             ->addArgument('arg1', InputArgument::OPTIONAL, 'Argument description')
+             ->addOption('option1', null, InputOption::VALUE_NONE, 'Option description');
     }
 
+    /**
+     * @param InputInterface  $input
+     * @param OutputInterface $output
+     *
+     * @return int
+     * @throws \DI\DependencyException
+     * @throws \DI\NotFoundException
+     */
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->bot->getTelegram()->setMyCommands([
@@ -151,7 +157,10 @@ class EasyEnglishWords extends TelegramBotBase
         return 0;
     }
 
-    public function learn(Context $context)
+    /**
+     * @param Context $context
+     */
+    public function learn(Context $context): void
     {
         $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
@@ -169,9 +178,12 @@ class EasyEnglishWords extends TelegramBotBase
             ],
             'parse_mode' => 'HTML',
         ]);
-    }    
-    
-    public function listWordsets(Context $context)
+    }
+
+    /**
+     * @param Context $context
+     */
+    public function listWordsets(Context $context): void
     {
         $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
@@ -191,7 +203,13 @@ class EasyEnglishWords extends TelegramBotBase
         ]);
     }
 
-    public function createWordSet(Context $context)
+    /**
+     * @param Context $context
+     *
+     * @throws \DI\DependencyException
+     * @throws \DI\NotFoundException
+     */
+    public function createWordSet(Context $context): void
     {
         $context->sendMessage('Введите название списка слов:');
         $context->nextStep(function (Context $context) {
@@ -218,7 +236,10 @@ class EasyEnglishWords extends TelegramBotBase
         });
     }
 
-    protected function getMenuReplyMarkup()
+    /**
+     * @return array{keyboard:array, resize_keyboard:bool}
+     */
+    protected function getMenuReplyMarkup(): array
     {
         return [
             'keyboard' => [
@@ -235,11 +256,22 @@ class EasyEnglishWords extends TelegramBotBase
         ];
     }
 
-    protected function isCommand($text): bool
+    /**
+     * @param string $text
+     *
+     * @return bool
+     */
+    protected function isCommand(string $text): bool
     {   
         return isset($this->menuCommands[$text]) || in_array($text, $this->menuCommands, true);
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordsetId:int} $params
+     */
     public function onWordSet(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
@@ -293,6 +325,12 @@ class EasyEnglishWords extends TelegramBotBase
         });
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordsetId:int, editMedia?:bool} $params
+     */
     public function learnWordset(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
@@ -338,6 +376,12 @@ class EasyEnglishWords extends TelegramBotBase
         }
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordInLearnId:int, wordsetId:int, editMedia?:bool} $params
+     */
     public function onRemember(Context $context, array $params)
     {
         $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], +1);
@@ -345,6 +389,12 @@ class EasyEnglishWords extends TelegramBotBase
         $this->learnWordset($context, $params);
     }
 
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordInLearnId:int, wordsetId:int} $params
+     */
     public function onForgot(Context $context, array $params)
     {
         $wordInLearn = $this->wordInLearnRepository->increaseScore($params['wordInLearnId'], -1);
@@ -362,7 +412,13 @@ class EasyEnglishWords extends TelegramBotBase
         $context->endConversation();
     }
 
-    public function showWordSetList(Context $context, array $params)
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordsetId:int} $params
+     */
+    public function showWordSetList(Context $context, array $params): void
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordInLearns();
@@ -382,7 +438,13 @@ class EasyEnglishWords extends TelegramBotBase
         $this->showPaging($context, ['data' => $inlineKeyBoard]);
     }
 
-    public function onMeaning(Context $context, array $params)
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{meaningId:int} $params
+     */
+    public function onMeaning(Context $context, array $params): void
     {
         $meaning = $this->meaningRepository->find($params['meaningId']);
         $inlineKeyboard = [
@@ -398,13 +460,24 @@ class EasyEnglishWords extends TelegramBotBase
         $context->endConversation();
     }
 
-    public function onAddWords(Context $context)
+    /**
+     * @param Context $context
+     *
+     * @throws \DI\DependencyException
+     * @throws \DI\NotFoundException
+     */
+    public function onAddWords(Context $context): void
     {
         $context->sendMessage('Введите слово');
         $context->nextStep([$this, 'searchWord']);
     }
 
-    public function searchWord(Context $context)
+    /**
+     * @param Context $context
+     *
+     * @throws \App\Libraries\Net\Exceptions\CurlException
+     */
+    public function searchWord(Context $context): void
     {
         $word = $context->getMessage()->getText();
 
@@ -447,7 +520,7 @@ class EasyEnglishWords extends TelegramBotBase
      *
      * @psalm-param array{words:array,word_external_id:int} $params
      */
-    public function onWord(Context $context, array $params)
+    public function onWord(Context $context, array $params): void
     {
         $words = $params['words'];
         $word = $words[$params['word_external_id']];
@@ -474,7 +547,14 @@ class EasyEnglishWords extends TelegramBotBase
         $context->endConversation();
     }
 
-    protected function sendMeaningPhoto(Context $context, Meaning $meaning, array $inlineKeyboard, string $caption = null, bool $edit = false)
+    /**
+     * @param Context     $context
+     * @param Meaning     $meaning
+     * @param array       $inlineKeyboard
+     * @param string|null $caption
+     * @param bool        $edit
+     */
+    protected function sendMeaningPhoto(Context $context, Meaning $meaning, array $inlineKeyboard, string $caption = null, bool $edit = false): void
     {
         $photoUrl = $meaning->getFirstImageByPrams(50);
         $fileId = $this->telegramFileCache->getFileId($photoUrl);
@@ -494,14 +574,22 @@ class EasyEnglishWords extends TelegramBotBase
         });
     }
 
-    protected function storeFileIdByMessage(Message $message, $photoUrl)
+    /**
+     * @param Message $message
+     * @param string  $photoUrl
+     */
+    protected function storeFileIdByMessage(Message $message, string $photoUrl): void
     {
         $photos = $message->getPhoto();
         $largestPhoto = end($photos);
         $this->telegramFileCache->storeFileId($photoUrl, $largestPhoto->getFileId());
     }
 
-    protected function sendMeaningAudio(Context $context, Meaning $meaning)
+    /**
+     * @param Context $context
+     * @param Meaning $meaning
+     */
+    protected function sendMeaningAudio(Context $context, Meaning $meaning): void
     {
         $this->sendAudio($context, $meaning->getSoundUrl(), [
             'caption' => $meaning->getTranscription(),
@@ -511,7 +599,12 @@ class EasyEnglishWords extends TelegramBotBase
         ]);
     }
 
-    protected function getMeaningCaption(Meaning $meaning)
+    /**
+     * @param Meaning $meaning
+     *
+     * @return string
+     */
+    protected function getMeaningCaption(Meaning $meaning): string
     {
         return "<b>{$meaning->getText()}</b> - <i>{$meaning->getTranslation()['text']}</i>
 [{$meaning->getTranscription()}]
@@ -520,7 +613,11 @@ class EasyEnglishWords extends TelegramBotBase
 ";
     }
 
-    public function showWordSetsToAdd(Context $context, array $params)
+    /**
+     * @param Context $context
+     * @param array   $params
+     */
+    public function showWordSetsToAdd(Context $context, array $params): void
     {
         $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
@@ -540,7 +637,13 @@ class EasyEnglishWords extends TelegramBotBase
         ]);
     }
 
-    public function addMeaningToWordSet(Context $context, array $params)
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{meaningId:int, wordSetId:int} $params
+     */
+    public function addMeaningToWordSet(Context $context, array $params): void
     {
         $wordInLearn = $this->wordInLearnRepository->findOneBy(['meaning' => $params['meaningId'], 'wordSet' => $params['wordSetId']]);
         
@@ -566,7 +669,16 @@ class EasyEnglishWords extends TelegramBotBase
         $context->endConversation();
     }
 
-    public function onChangeWordSetImage(Context $context, array $params)
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordsetId:int} $params
+     *                       
+     * @throws \DI\DependencyException
+     * @throws \DI\NotFoundException
+     */
+    public function onChangeWordSetImage(Context $context, array $params): void
     {
         $context->sendMessage('Отправьте новую обложку');
         
