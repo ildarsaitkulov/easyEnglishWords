@@ -212,24 +212,23 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordsInLearnProgress();
-        if ($wordsInLearn->count() === 0) {
+        $totalCount = $wordsInLearn->count();
+        if ($totalCount === 0) {
             $context->sendMessage("Молодец, все слова из списка <i>{$wordSet->getTitle()}</i> выучены!", ['parse_mode' => 'HTML']);
             
             return;
         }
-        error_log("total count: " . $wordsInLearn->count());
         $offsetKey = "learnWordset_{$params['wordsetId']}";
-        $offset = $this->cache->get($offsetKey) ?? 0;
-        $wordsInLearnChunk = $wordsInLearn->slice($offset);
-
-        if (count($wordsInLearnChunk) === 0) {
-            $wordsInLearnChunk = $wordsInLearn->slice(0);
+        $offset = $this->cache->get($offsetKey);
+        if (!$offset || $offset >= $totalCount) {
+            $offset = 0;
         }
         
+        $wordsInLearnChunk = $wordsInLearn->slice($offset);
+        
         /** @var $wordInLearn WordInLearn */
-        foreach ($wordsInLearnChunk as $key => $wordInLearn) {
+        foreach ($wordsInLearnChunk as $wordInLearn) {
             $meaning = $wordInLearn->getMeaning();
-            var_dump($wordInLearn->getScore());
             $inlineKeyboard = [
                 [
                     [
@@ -242,10 +241,12 @@ class EasyEnglishWords extends TelegramBotBase
                     ],
                 ],
             ];
-            $caption = "<b>{$meaning->getTranslation()['text']}</b>
+            $page = $offset + 1;
+            $caption = "{$page}/{$totalCount}
+<b>{$meaning->getTranslation()['text']}</b>
 Вспомните перевод";
             $this->sendMeaningPhoto($context, $meaning, $inlineKeyboard, $caption, true);
-            $this->cache->set($offsetKey, ++$key);
+            $this->cache->set($offsetKey, ++$offset);
             break;
         }
     }
