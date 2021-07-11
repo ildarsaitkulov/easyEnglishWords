@@ -45,9 +45,15 @@ class WordSet
      */
     private $wordInLearns;
 
+    /**
+     * @ORM\ManyToMany(targetEntity=WordsetCollection::class, mappedBy="wordSets")
+     */
+    private $wordsetCollections;
+
     public function __construct()
     {
         $this->wordInLearns = new ArrayCollection();
+        $this->wordsetCollections = new ArrayCollection();
     }
 
     public function getId(): ?int
@@ -151,6 +157,33 @@ class WordSet
             if ($wordInLearn->getWordSet() === $this) {
                 $wordInLearn->setWordSet(null);
             }
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return Collection|WordsetCollection[]
+     */
+    public function getWordsetCollections(): Collection
+    {
+        return $this->wordsetCollections;
+    }
+
+    public function addWordsetCollection(WordsetCollection $wordsetCollection): self
+    {
+        if (!$this->wordsetCollections->contains($wordsetCollection)) {
+            $this->wordsetCollections[] = $wordsetCollection;
+            $wordsetCollection->addWordSet($this);
+        }
+
+        return $this;
+    }
+
+    public function removeWordsetCollection(WordsetCollection $wordsetCollection): self
+    {
+        if ($this->wordsetCollections->removeElement($wordsetCollection)) {
+            $wordsetCollection->removeWordSet($this);
         }
 
         return $this;

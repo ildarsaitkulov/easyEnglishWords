@@ -56,6 +56,7 @@ class EasyEnglishWords extends TelegramBotBase
         '/start' => 'Старт',
         '/create_wordset' => 'Создать список слов',
         '/list_wordsets' => 'Списки слов',
+        '/top_wordsets' => 'Топ слова',
         '/learn' => 'Учить',
         '/search' => 'Поиск',
     ];
@@ -250,7 +251,10 @@ class EasyEnglishWords extends TelegramBotBase
                 [
                     ['text' => $this->menuCommands['/list_wordsets']],
                     ['text' => $this->menuCommands['/create_wordset']],
-                ]
+                ],
+                [
+                    ['text' => $this->menuCommands['/top_wordsets']],
+                ],
             ],
             'resize_keyboard' => true
         ];
