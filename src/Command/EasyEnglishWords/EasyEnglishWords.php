@@ -134,7 +134,7 @@ class EasyEnglishWords extends TelegramBotBase
                 $this->logger->error("on start {$exception->getMessage()}");
             }
 
-            $context->sendMessage('Привет!', [
+            $context->sendMessage('Привет! Я помогу тебе выучить английские слова.', [
                 'reply_markup' => $this->getMenuReplyMarkup(),
             ]);
 
