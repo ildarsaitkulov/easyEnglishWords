@@ -172,6 +172,12 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+        if (empty($wordSetList)) {
+            $this->onEmptyWordset($context);
+
+            return;
+        }
+        
         foreach ($wordSetList as $wordSet) {
             $inlineKeyboard[] = [
                 [
@@ -195,6 +201,12 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+        if (empty($wordSetList)) {
+            $this->onEmptyWordset($context);
+
+            return;
+        }
+        
         foreach ($wordSetList as $wordSet) {
             $inlineKeyboard[] = [
                 [
@@ -203,7 +215,7 @@ class EasyEnglishWords extends TelegramBotBase
                 ]
             ];
         }
-        $context->sendMessage('Наборы слов:', [
+        $context->sendMessage('Мои словари:', [
             'reply_markup' => [
                 'inline_keyboard' => $inlineKeyboard
             ],
@@ -734,25 +746,7 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
         if (empty($wordSetList)) {
-            $inlineKeyboard = [
-                [
-                    [
-                        'callback_data' => $this->prepareCallbackData('createWordSet'),
-                        'text' => 'Да',
-                    ],
-                    [
-                        'callback_data' => $this->prepareCallbackData('endConversation', ['message' => 'Ok']),
-                        'text' => 'Не надо',
-                    ],
-                ],
-                
-            ];
-            $context->sendMessage('У вас нет словарей, создать?', [
-                'reply_markup' => [
-                    'inline_keyboard' => $inlineKeyboard
-                ],
-                'parse_mode' => 'HTML',
-            ]);
+            $this->onEmptyWordset($context);
             
             return;
         }
@@ -767,6 +761,35 @@ class EasyEnglishWords extends TelegramBotBase
             ];
         }
         $context->sendMessage('Куда добавить?', [
+            'reply_markup' => [
+                'inline_keyboard' => $inlineKeyboard
+            ],
+            'parse_mode' => 'HTML',
+        ]);
+    }
+
+    public function onEmptyWordset(Context $context)
+    {
+        $inlineKeyboard = [
+            [
+                [
+                    'callback_data' => $this->prepareCallbackData('createWordSet'),
+                    'text' => 'Да',
+                ],
+                [
+                    'callback_data' => $this->prepareCallbackData('endConversation', ['message' => 'Ok']),
+                    'text' => 'Не надо',
+                ],
+            ],
+            [
+                [
+                    'callback_data' => $this->prepareCallbackData('popularWordSets'),
+                    'text' => 'Популярные словари',
+                ],
+            ]
+
+        ];
+        $context->sendMessage('У вас нет словарей, создать?', [
             'reply_markup' => [
                 'inline_keyboard' => $inlineKeyboard
             ],
