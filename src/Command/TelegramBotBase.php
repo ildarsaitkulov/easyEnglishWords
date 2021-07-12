@@ -70,13 +70,17 @@ class TelegramBotBase extends Command
             $callbackData = $context->getCallbackQuery()->getData();
             [$methodName, $cacheId] = explode('@', $callbackData);
             $methodParams = $this->cache->get($cacheId);
-            if (!$methodParams) {
+            if ($methodParams === null) {
                 $this->sendButtonExpired($context);
                 $context->endConversation();
 
                 return;
             }
-            call_user_func([$this, $methodName], $context, $methodParams);
+            if (empty($methodParams)) {
+                call_user_func([$this, $methodName], $context);
+            } else {
+                call_user_func([$this, $methodName], $context, $methodParams);
+            }
             $context->answerCallbackQuery();
         });
 
@@ -167,7 +171,7 @@ class TelegramBotBase extends Command
      *
      * @return string
      */
-    public function prepareCallbackData(string $method, $params)
+    public function prepareCallbackData(string $method, array $params = [])
     {
         $id = $this->generateUniqueId();
         $this->cache->set($id, $params, $this->config['callback_ttl']);

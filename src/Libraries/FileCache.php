@@ -31,7 +31,7 @@ class FileCache
     {
         $cachePath = $this->getPath($key);
         if(!file_exists($cachePath)) {
-            return false;
+            return null;
         }
 
         $expired = false;
@@ -49,7 +49,7 @@ class FileCache
         if($expired) {
             @unlink($cachePath);
 
-            return false;
+            return null;
         }
 
         return $storedData['v'];

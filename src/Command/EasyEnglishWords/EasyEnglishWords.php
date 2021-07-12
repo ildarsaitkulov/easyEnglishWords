@@ -12,6 +12,7 @@ use App\Libraries\Telegram\TelegramFileCache;
 use App\Repository\EasyEnglishWords\EnglishWordRepository;
 use App\Repository\EasyEnglishWords\MeaningRepository;
 use App\Repository\EasyEnglishWords\WordInLearnRepository;
+use App\Repository\EasyEnglishWords\WordsetCollectionRepository;
 use App\Repository\EasyEnglishWords\WordSetRepository;
 use App\Repository\Telegram\ChatRepository;
 use App\Repository\Telegram\UserRepository;
@@ -40,6 +41,7 @@ class EasyEnglishWords extends TelegramBotBase
     protected ChatRepository $telegramChatRepository;
     protected DictionaryApi $dictionaryApi;
     protected TelegramBotBase $telegramBotHelper;
+    protected WordsetCollectionRepository $wordsetCollectionRepository;
 
     public const IMAGES_DIR = APP_ROOT . '/public/EasyEnglishWords/images/';
     public const NO_IMAGE_FILE_PATH =  self::IMAGES_DIR  . 'no-image-icon.png';
@@ -54,9 +56,9 @@ class EasyEnglishWords extends TelegramBotBase
     
     protected array $menuCommands = [
         '/start' => 'Старт',
-        '/create_wordset' => 'Создать список слов',
-        '/list_wordsets' => 'Списки слов',
-        '/top_wordsets' => 'Топ слова',
+        '/create_wordset' => 'Создать словарь',
+        '/list_wordsets' => 'Мои словари',
+        '/popular_wordsets' => 'Популярные словари',
         '/learn' => 'Учить',
         '/search' => 'Поиск',
     ];
@@ -74,12 +76,14 @@ class EasyEnglishWords extends TelegramBotBase
                                 MeaningRepository $meaningRepository,
                                 WordInLearnRepository $wordInLearnRepository,
                                 UserRepository $telegramUserRepository,
-                                ChatRepository $chatRepository
+                                ChatRepository $chatRepository,
+                                WordsetCollectionRepository $wordsetCollectionRepository
     )
     {
         $this->config['botToken'] = $_ENV['EASY_ENGLISH_BOT_TOKEN'];
         $this->config['bot_username'] = $_ENV['EASY_ENGLISH_BOT_USERNAME'];
         
+        $this->wordsetCollectionRepository = $wordsetCollectionRepository;
         $this->entityManager = $entityManager;
         $this->meaningRepository = $meaningRepository;
         $this->englishWordRepository = $englishWordRepository;
@@ -146,6 +150,9 @@ class EasyEnglishWords extends TelegramBotBase
         
         $this->bot->onCommand('list_wordsets', [$this, 'listWordsets']);
         $this->bot->onText($this->menuCommands['/list_wordsets'], [$this, 'listWordsets']);
+
+        $this->bot->onCommand('popular_wordsets', [$this, 'popularWordSets']);
+        $this->bot->onText($this->menuCommands['/popular_wordsets'], [$this, 'popularWordSets']);
         
         $this->bot->onCommand('search', [$this, 'onAddWords']);
         $this->bot->onText($this->menuCommands['/search'], [$this, 'onAddWords']);
@@ -203,6 +210,34 @@ class EasyEnglishWords extends TelegramBotBase
             'parse_mode' => 'HTML',
         ]);
     }
+    
+    /**
+     * @param Context $context
+     */
+    public function popularWordSets(Context $context): void
+    {
+        $inlineKeyboard = [];
+        $collections = $this->wordsetCollectionRepository->findAll();
+        
+        foreach ($collections as $wordSetTopCollection) {
+            foreach ($wordSetTopCollection->getWordSets() as $wordSet) {
+                
+                $inlineKeyboard[] = [
+                    [
+                        'callback_data' => $this->prepareCallbackData('onPopularWordSet', ['wordsetId' => $wordSet->getId()]),
+                        'text' => "{$wordSet->getTitle()}: {$wordSet->getWordInLearns()->count()}",
+                    ]
+                ];
+            }
+            $context->sendMessage("{$wordSetTopCollection->getTitle()}:", [
+                'reply_markup' => [
+                    'inline_keyboard' => $inlineKeyboard
+                ],
+                'parse_mode' => 'HTML',
+            ]);
+        }
+        
+    }
 
     /**
      * @param Context $context
@@ -212,7 +247,7 @@ class EasyEnglishWords extends TelegramBotBase
      */
     public function createWordSet(Context $context): void
     {
-        $context->sendMessage('Введите название списка слов:');
+        $context->sendMessage('Введите название для нового словаря:');
         $context->nextStep(function (Context $context) {
             $title = $context->getMessage()->getText();
             if ($this->isCommand($title)) {
@@ -253,7 +288,7 @@ class EasyEnglishWords extends TelegramBotBase
                     ['text' => $this->menuCommands['/create_wordset']],
                 ],
                 [
-                    ['text' => $this->menuCommands['/top_wordsets']],
+                    ['text' => $this->menuCommands['/popular_wordsets']],
                 ],
             ],
             'resize_keyboard' => true
@@ -279,7 +314,6 @@ class EasyEnglishWords extends TelegramBotBase
     public function onWordSet(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
-        $file = $wordSet->getFileId() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
         $options = [
             'parse_mode' => 'HTML',
             'caption' => $wordSet->getTitle(),
@@ -314,6 +348,81 @@ class EasyEnglishWords extends TelegramBotBase
                 ]
             ],
         ];
+        
+        $this->sendWordsetPhoto($context, $wordSet, $options);
+    }    
+    
+    
+    /**
+     * @param Context $context
+     * @param array   $params
+     *
+     * @psalm-param array{wordsetId:int} $params
+     */
+    public function onPopularWordSet(Context $context, array $params)
+    {
+        $wordSet = $this->wordSetRepository->find($params['wordsetId']);
+        $options = [
+            'parse_mode' => 'HTML',
+            'caption' => $wordSet->getTitle(),
+            'reply_markup' => [
+                'inline_keyboard' => [
+                    [
+
+                        [
+                            'callback_data' => $this->prepareCallbackData('showWordSetList', $params),
+                            'text' => "Показать слова",
+                        ]
+                    ],
+                    [
+                        [
+                            'callback_data' => $this->prepareCallbackData('savePopularWordset', ['wordsetId' => $params['wordsetId']]),
+                            'text' => "Сохранить к себе",
+                        ],
+                    ],
+                ]
+            ],
+        ];
+        
+        $this->sendWordsetPhoto($context, $wordSet, $options);
+    }
+
+    public function savePopularWordset(Context $context, array $params)
+    {
+        $topWordSet = $this->wordSetRepository->find($params['wordsetId']);
+
+        /** @var \Zanzara\Telegram\Type\User $user */
+        $user = $context->getEffectiveUser();
+        
+        $alreadySavedWordset = $this->wordSetRepository->findOneBy(['telegramUser' => $user->getId(), 'title' => $topWordSet->getTitle()]);
+        if ($alreadySavedWordset) {
+            $context->sendMessage("Словарь: <i>{$alreadySavedWordset->getTitle()}</i> уже существует!", ['parse_mode' => 'HTML']);
+            $context->endConversation();
+            
+            return;
+        }
+        
+        $wordSet = new WordSet();
+        $wordSet->setTitle($topWordSet->getTitle());
+        $wordSet->setDescription($topWordSet->getDescription());
+        $wordSet->setImage($topWordSet->getImage());
+        
+        $wordsInLearn = $topWordSet->getWordInLearns();
+        foreach ($wordsInLearn as $wordInLearn) {
+            $wordSet->addWordToLearn($wordInLearn);
+        }
+        
+        
+        $telegramUser = $this->telegramUserRepository->saveTelegramUser($user);
+        $wordSet->setTelegramUser($telegramUser);
+        $this->entityManager->persist($wordSet);
+        $this->entityManager->flush();
+        $context->sendMessage("Словарь: <i>{$wordSet->getTitle()}</i> успешно сохранён!", ['parse_mode' => 'HTML']);
+    }
+
+    protected function sendWordsetPhoto(Context $context, WordSet $wordSet, array $options)
+    {
+        $file = $wordSet->getFileId() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
         
         $context->sendPhoto($file, $options)->then(function () {}, function ($error) use ($context, $options, $wordSet) {
             $this->logger->error($error);
@@ -623,8 +732,32 @@ class EasyEnglishWords extends TelegramBotBase
      */
     public function showWordSetsToAdd(Context $context, array $params): void
     {
-        $inlineKeyboard = [];
         $wordSetList = $this->wordSetRepository->findBy(['telegramUser' => $user = $context->getEffectiveUser()->getId()]);
+        if (empty($wordSetList)) {
+            $inlineKeyboard = [
+                [
+                    [
+                        'callback_data' => $this->prepareCallbackData('createWordSet'),
+                        'text' => 'Да',
+                    ],
+                    [
+                        'callback_data' => $this->prepareCallbackData('endConversation', ['message' => 'Ok']),
+                        'text' => 'Не надо',
+                    ],
+                ],
+                
+            ];
+            $context->sendMessage('У вас нет словарей, создать?', [
+                'reply_markup' => [
+                    'inline_keyboard' => $inlineKeyboard
+                ],
+                'parse_mode' => 'HTML',
+            ]);
+            
+            return;
+        }
+
+        $inlineKeyboard = [];
         foreach ($wordSetList as $wordSet) {
             $inlineKeyboard[] = [
                 [
@@ -639,6 +772,14 @@ class EasyEnglishWords extends TelegramBotBase
             ],
             'parse_mode' => 'HTML',
         ]);
+    }
+
+    public function endConversation(Context $context, array $params)
+    {
+        if (!empty($params['message'])) {
+            $context->sendMessage($params['message']);
+        }
+        $context->endConversation();
     }
 
     /**
