@@ -25,11 +25,6 @@ class WordsetCollection
     private $title;
 
     /**
-     * @ORM\Column(type="string", length=255, unique=true)
-     */
-    private $alias;
-
-    /**
      * @ORM\Column(type="string", length=255, nullable=true)
      */
     private $description;
@@ -57,18 +52,6 @@ class WordsetCollection
     public function setTitle(string $title): self
     {
         $this->title = $title;
-
-        return $this;
-    }
-
-    public function getAlias(): ?string
-    {
-        return $this->alias;
-    }
-
-    public function setAlias(string $alias): self
-    {
-        $this->alias = $alias;
 
         return $this;
     }

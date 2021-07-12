@@ -418,6 +418,7 @@ class EasyEnglishWords extends TelegramBotBase
         $wordSet->setTitle($topWordSet->getTitle());
         $wordSet->setDescription($topWordSet->getDescription());
         $wordSet->setImage($topWordSet->getImage());
+        $this->entityManager->persist($wordSet);
         
         $wordsInLearn = $topWordSet->getWordInLearns();
         foreach ($wordsInLearn as $wordInLearn) {
@@ -425,6 +426,7 @@ class EasyEnglishWords extends TelegramBotBase
             $newWordInLearn->setMeaning($wordInLearn->getMeaning());
             $newWordInLearn->setWordSet($wordSet);
             $newWordInLearn->setScore(0);
+            $this->entityManager->persist($newWordInLearn);
             $wordSet->addWordToLearn($newWordInLearn);
         }
         
@@ -438,20 +440,34 @@ class EasyEnglishWords extends TelegramBotBase
 
     protected function sendWordsetPhoto(Context $context, WordSet $wordSet, array $options)
     {
-        $file = $wordSet->getFileId() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
+        $file = $wordSet->getFileId();
+        $saveFileId = false;
+        if (!$file) {
+            $saveFileId = true;
+            $file = $wordSet->getImage() ?: new InputFile(self::NO_IMAGE_FILE_PATH);
+        }
         
-        $context->sendPhoto($file, $options)->then(function () {}, function ($error) use ($context, $options, $wordSet) {
+        $context->sendPhoto($file, $options)->then(function (Message $message) use ($context, $wordSet, $saveFileId) {
+            if ($saveFileId) {
+                $this->saveFileIdFromMessage($context, $message, $wordSet);
+            }
+        }, function ($error) use ($context, $options, $wordSet) {
             $this->logger->error($error);
             $context->sendPhoto($wordSet->getImage(), $options)->then(function (Message $message) use ($context, $wordSet) {
-                $photos = $message->getPhoto();
-                if ($photos) {
-                    $largesPhoto = end($photos);
-                    $context->getFile($largesPhoto->getFileId())->then(function (\Zanzara\Telegram\Type\File\File $file) use ($wordSet) {
-                        $this->wordSetRepository->saveWordsetImage($wordSet->getId(), $file);
-                    });
-                }
+                $this->saveFileIdFromMessage($context, $message, $wordSet);
             });
         });
+    }
+
+    protected function saveFileIdFromMessage(Context $context, Message $message, WordSet $wordSet)
+    {
+        $photos = $message->getPhoto();
+        if ($photos) {
+            $largesPhoto = end($photos);
+            $context->getFile($largesPhoto->getFileId())->then(function (\Zanzara\Telegram\Type\File\File $file) use ($wordSet) {
+                $this->wordSetRepository->saveWordsetImage($wordSet->getId(), $file);
+            });
+        }
     }
 
     /**
@@ -497,8 +513,8 @@ class EasyEnglishWords extends TelegramBotBase
             ];
             $page = $offset + 1;
             $caption = "{$page}/{$totalCount}
-<b>{$meaning->getTranslation()['text']}</b>
-Вспомните перевод";
+
+<b>{$meaning->getText()}</b>";
             $this->sendMeaningPhoto($context, $meaning, $inlineKeyboard, $caption, $editMedia);
             $this->cache->set($offsetKey, ++$offset);
             break;
