@@ -27,11 +27,8 @@ final class Version20210711195404 extends AbstractMigration
         $this->addSql('CREATE INDEX IDX_E3DD86EE6222D996 ON wordset_collection_word_set (word_set_id)');
         $this->addSql('ALTER TABLE wordset_collection_word_set ADD CONSTRAINT FK_E3DD86EE64181406 FOREIGN KEY (wordset_collection_id) REFERENCES wordset_collection (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE');
         $this->addSql('ALTER TABLE wordset_collection_word_set ADD CONSTRAINT FK_E3DD86EE6222D996 FOREIGN KEY (word_set_id) REFERENCES word_set (id) ON DELETE CASCADE NOT DEFERRABLE INITIALLY IMMEDIATE');
-        $this->addSql('DROP INDEX uniq_word_external_id');
-        $this->addSql('DROP INDEX uniq_meaning_external_id');
-        $this->addSql('DROP INDEX uniq_wordset_word');
+        
         $this->addSql('ALTER INDEX idx_64553f3e357438d RENAME TO IDX_64553F320A7F0E6');
-        $this->addSql('DROP INDEX uniq_telegram_user_id__title');
     }
 
     public function down(Schema $schema) : void
@@ -41,10 +38,6 @@ final class Version20210711195404 extends AbstractMigration
         $this->addSql('DROP SEQUENCE wordset_collection_id_seq CASCADE');
         $this->addSql('DROP TABLE wordset_collection');
         $this->addSql('DROP TABLE wordset_collection_word_set');
-        $this->addSql('CREATE UNIQUE INDEX uniq_telegram_user_id__title ON word_set (telegram_user_id, title) WHERE (telegram_user_id IS NOT NULL)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_word_external_id ON english_word (external_id)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_meaning_external_id ON meaning (external_id)');
-        $this->addSql('CREATE UNIQUE INDEX uniq_wordset_word ON word_in_learn (word_set_id, meaning_id)');
         $this->addSql('ALTER INDEX idx_64553f320a7f0e6 RENAME TO idx_64553f3e357438d');
     }
 }
