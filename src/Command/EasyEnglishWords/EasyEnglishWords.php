@@ -421,8 +421,11 @@ class EasyEnglishWords extends TelegramBotBase
         
         $wordsInLearn = $topWordSet->getWordInLearns();
         foreach ($wordsInLearn as $wordInLearn) {
-            $wordInLearn->setScore(0);
-            $wordSet->addWordToLearn($wordInLearn);
+            $newWordInLearn = new WordInLearn();
+            $newWordInLearn->setMeaning($wordInLearn->getMeaning());
+            $newWordInLearn->setWordSet($wordSet);
+            $newWordInLearn->setScore(0);
+            $wordSet->addWordToLearn($newWordInLearn);
         }
         
         
