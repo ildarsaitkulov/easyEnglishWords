@@ -574,7 +574,7 @@ class EasyEnglishWords extends TelegramBotBase
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordInLearns();
         
-        if (empty($wordsInLearn)) {
+        if ($wordsInLearn->count() === 0) {
             $context->sendMessage('В словаре нет слов!');
             $context->endConversation();
             
