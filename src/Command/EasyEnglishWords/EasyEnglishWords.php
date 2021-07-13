@@ -649,7 +649,6 @@ class EasyEnglishWords extends TelegramBotBase
         
         if (empty($searchResponse)) {
             $context->sendMessage("По запросу <i>{$word}</i> ничего не найдено!", ['parse_mode' => 'HTML']);
-            $context->endConversation();
             
             return;
         }
