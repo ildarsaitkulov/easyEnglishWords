@@ -46,6 +46,8 @@ class EasyEnglishWords extends TelegramBotBase
     public const IMAGES_DIR = APP_ROOT . '/public/EasyEnglishWords/images/';
     public const NO_IMAGE_FILE_PATH =  self::IMAGES_DIR  . 'no-image-icon.png';
 
+    protected int $maxPageSize = 5;
+
 
     protected array $config = [
         'telegramApiUrl' => 'http://127.0.0.1:8081',
@@ -127,6 +129,14 @@ class EasyEnglishWords extends TelegramBotBase
                 'command' => '/list_wordsets',
                 'description' => $this->menuCommands['/list_wordsets']
             ],
+            [
+                'command' => '/learn',
+                'description' => $this->menuCommands['/learn']
+            ],
+            [
+                'command' => '/search',
+                'description' => $this->menuCommands['/search']
+            ],
         ]);
         
 
@@ -142,6 +152,7 @@ class EasyEnglishWords extends TelegramBotBase
             $context->sendMessage('Привет! Я помогу тебе выучить английские слова.', [
                 'reply_markup' => $this->getMenuReplyMarkup(),
             ]);
+            $context->sendMessage('Бот находится в разработке');
 
         });
         
