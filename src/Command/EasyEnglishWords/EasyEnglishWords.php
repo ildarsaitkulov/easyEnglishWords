@@ -272,12 +272,13 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $context->sendMessage('Введите название для нового словаря:');
         $context->nextStep(function (Context $context) {
-            $title = $context->getMessage()->getText();
-            if ($this->isCommand($title)) {
+            $message = $context->getMessage();
+            if (!$message || $this->isCommand($message->getText())) {
                 $context->endConversation();
                 
                 return;
             }
+            $title = $message->getText();
             $wordSet = $this->wordSetRepository->findOneBy(['title' => $title, 'telegramUser' => $user = $context->getEffectiveUser()->getId()]);
             if ($wordSet) {
                 $context->sendMessage("Список слов: <i>{$title}</i> уже существует!", ['parse_mode' => 'HTML']);
