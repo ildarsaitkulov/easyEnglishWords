@@ -479,6 +479,12 @@ class EasyEnglishWords extends TelegramBotBase
     public function learnWordset(Context $context, array $params)
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
+        if ($wordSet->getWordInLearns()->count() === 0) {
+            $context->sendMessage('В словаре нет слов!');
+            $context->endConversation();
+
+            return;
+        }
         $wordsInLearn = $wordSet->getWordsInLearnProgress();
         $totalCount = $wordsInLearn->count();
         if ($totalCount === 0) {
@@ -567,6 +573,13 @@ class EasyEnglishWords extends TelegramBotBase
     {
         $wordSet = $this->wordSetRepository->find($params['wordsetId']);
         $wordsInLearn = $wordSet->getWordInLearns();
+        
+        if (empty($wordsInLearn)) {
+            $context->sendMessage('В словаре нет слов!');
+            $context->endConversation();
+            
+            return;
+        }
 
         $inlineKeyBoard = [];
         foreach ($wordsInLearn as $wordInLearn) {
@@ -624,7 +637,13 @@ class EasyEnglishWords extends TelegramBotBase
      */
     public function searchWord(Context $context): void
     {
-        $word = $context->getMessage()->getText();
+        $message = $context->getMessage();
+        if (!$message) {
+            $context->endConversation();
+
+            return;
+        }
+        $word = $message->getText();
 
         $searchResponse = $this->dictionaryApi->searchWords($word);
         
